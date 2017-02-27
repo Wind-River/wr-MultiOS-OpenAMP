@@ -1,0 +1,1286 @@
+diff -uparN libmetal-2016.10/lib/io.c libmetal/lib/io.c
+--- libmetal-2016.10/lib/io.c	2016-10-15 07:43:45.000000000 +0800
++++ libmetal/lib/io.c	2017-02-24 14:39:46.000000000 +0800
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (c) 2015, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System Inc. All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are met:
+@@ -30,11 +31,13 @@
+ 
+ #include "metal/io.h"
+ 
+-void *metal_generic_memset_io(void *dst, int c, size_t size)
++void *metal_generic_memset_io(void *vdst, int c, size_t size)
+ {
+-	void *retdst = dst;
++	void *retdst = vdst;
+ 	unsigned int cint = (unsigned char)c;
+ 	unsigned int i;
++	unsigned char *dst = vdst;
++	
+ 	for (i = 1; i < sizeof(int); i++)
+ 		cint |= (c << (8 * i));
+ 
+@@ -47,9 +50,13 @@ void *metal_generic_memset_io(void *dst,
+ 	return retdst;
+ }
+ 
+-void *metal_generic_memcpy_io(void *dst, const void *src, size_t size)
++void *metal_generic_memcpy_io(void *vdst, const void *vsrc, size_t size)
+ {
+-	void *retdst = dst;
++	void *retdst = vdst;
++	unsigned char *dst, *src;
++	
++	dst = vdst;
++	src = vsrc;
+ 	while (size && (
+ 		((uintptr_t)dst % sizeof(int)) ||
+ 		((uintptr_t)src % sizeof(int)))) {
+diff -uparN libmetal-2016.10/lib/Makefile libmetal/lib/Makefile
+--- libmetal-2016.10/lib/Makefile	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/Makefile	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,49 @@
++# Makefile - makefile for libmetal library
++#
++# Copyright (c) 2016 Wind River Systems, Inc. 
++# 
++# Redistribution and use in source and binary forms, with or without modification, are 
++# permitted provided that the following conditions are met: 
++# 
++# 1) Redistributions of source code must retain the above copyright notice, 
++# this list of conditions and the following disclaimer. 
++# 
++# 2) Redistributions in binary form must reproduce the above copyright notice, 
++# this list of conditions and the following disclaimer in the documentation and/or 
++# other materials provided with the distribution. 
++# 
++# 3) Neither the name of Wind River Systems nor the names of its contributors may be 
++# used to endorse or promote products derived from this software without specific 
++# prior written permission. 
++# 
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
++# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
++# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
++# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
++# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
++# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
++# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
++# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
++# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
++# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
++#
++# modification history
++# --------------------
++# 28nov16,ghl  create for OpenAMP-v201610 (F8373)
++#
++# DESCRIPTION
++# This file contains the makefile rules for building libmetal library.
++#
++
++LIB_BASE_NAME = OPENAMP
++BUILD_DIRS += system/vxworks
++
++include $(WIND_KRNL_MK)/defs.library.mk
++
++DOC_FILES      = device.c dma.c init.c io.c log.c shmem.c version.c
++
++include $(wildcard $(sort *.mk))
++
++OBJS = device.o dma.o init.o io.o log.o shmem.o version.o
++
++include $(WIND_KRNL_MK)/rules.library.mk
+diff -uparN libmetal-2016.10/lib/processor/arm/atomic.h libmetal/lib/processor/arm/atomic.h
+--- libmetal-2016.10/lib/processor/arm/atomic.h	2016-10-15 07:43:45.000000000 +0800
++++ libmetal/lib/processor/arm/atomic.h	2017-02-24 14:39:46.000000000 +0800
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (c) 2015, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are met:
+@@ -29,11 +30,209 @@
+  */
+ 
+ /*
+- * @file	gcc/atomic.h
++ * @file	arm/atomic.h
+  * @brief	GCC specific atomic primitives for libmetal.
+  */
+ 
+ #ifndef __METAL_ARM_ATOMIC__H__
+ #define __METAL_ARM_ATOMIC__H__
+ 
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include <vxWorks.h>
++#include <vxAtomicLib.h>
++#include <intLib.h>
++#include <private/kernelLibP.h>
++
++
++#define __sync_synchronize() \
++	VX_MEM_BARRIER_RW()
++
++typedef int atomic_flag;
++typedef char atomic_char;
++typedef unsigned char atomic_uchar;
++typedef short atomic_short;
++typedef unsigned short atomic_ushort;
++typedef int atomic_int;
++typedef unsigned int atomic_uint;
++typedef long atomic_long;
++typedef unsigned long atomic_ulong;
++typedef long long atomic_llong;
++typedef unsigned long long atomic_ullong;
++
++#define ATOMIC_FLAG_INIT	0
++#define ATOMIC_VAR_INIT(VAL)	(VAL)
++
++typedef enum {
++	memory_order_relaxed,
++	memory_order_consume,
++	memory_order_acquire,
++	memory_order_release,
++	memory_order_acq_rel,
++	memory_order_seq_cst,
++} memory_order;
++
++
++#define atomic_flag_test_and_set(FLAG)			\
++    ({								            \
++        int lockKey;                            \
++        typeof(FLAG) flag = (FLAG);				\
++        typeof(*flag) flagval;	                \
++        lockKey = KERNEL_INT_CPU_LOCK ();       \
++        flagval = *flag;                        \
++        *flag = 1;						        \
++        KERNEL_INT_CPU_UNLOCK (lockKey);        \
++        flagval;					            \
++    })
++#define atomic_flag_test_and_set_explicit(FLAG, MO)			\
++	atomic_flag_test_and_set(FLAG)
++#define atomic_flag_clear(FLAG)					\
++	do {								        \
++        int lockKey;                            \
++        typeof((FLAG)) flag = (FLAG);			\
++        lockKey = KERNEL_INT_CPU_LOCK ();       \
++        *flag = 0;						        \
++        KERNEL_INT_CPU_UNLOCK (lockKey);        \
++    }while(0)
++#define atomic_flag_clear_explicit(FLAG, MO)		\
++	atomic_flag_clear(FLAG)
++#define atomic_init(OBJ, VAL)						\
++	do { *(OBJ) = (VAL); } while (0)
++#define atomic_is_lock_free(OBJ)					\
++	(sizeof(*(OBJ)) <= sizeof(long))
++#define atomic_store(OBJ, VAL)						\
++	do { *(OBJ) = (VAL); __sync_synchronize(); } while (0)
++#define atomic_store_explicit(OBJ, VAL, MO)			\
++	atomic_store((OBJ), (VAL))
++#define atomic_load(OBJ)						\
++	({ __sync_synchronize(); *(OBJ); })
++#define atomic_load_explicit(OBJ, MO)			\
++	atomic_load(OBJ)
++#define atomic_exchange(OBJ, DES)				\
++	({								            \
++	    int     lock;                           \
++		typeof(OBJ) obj = (OBJ);				\
++		typeof(*obj) des = (DES);				\
++		typeof(*obj) expval;					\
++		typeof(*obj) oldval = atomic_load(obj);	\
++		do {							        \
++			expval = oldval;                    \
++			lock = KERNEL_INT_CPU_LOCK ();      \
++			oldval = *obj                       \
++            if (expval == oldval)               \
++    	    {                                   \
++    	    *obj = desval;                      \
++    	    }                                   \
++            KERNEL_INT_CPU_UNLOCK (lock);       \
++		} while (oldval != expval);				\
++		oldval;							        \
++	})
++#define atomic_exchange_explicit(OBJ, DES, MO)				\
++	atomic_exchange((OBJ), (DES))
++#define atomic_compare_exchange_strong(OBJ, EXP, DES)		\
++	({								            \
++        int     lock;                           \
++		typeof(OBJ) obj = (OBJ);				\
++		typeof(EXP) exp = (EXP);				\
++		typeof(DES) des = (DES);				\
++		typeof(*obj) expval = *exp;				\
++		typeof(*des) desval = *des;             \
++		typeof(*obj) oldval;      				\
++        lock = KERNEL_INT_CPU_LOCK ();          \
++        oldval = *obj;                          \
++        if (expval == oldval)                   \
++	    {                                       \
++	    *obj = desval;                          \
++	    }                                       \
++        KERNEL_INT_CPU_UNLOCK (lock);           \
++		*exp = oldval;						    \
++		oldval == expval;					    \
++	})
++#define atomic_compare_exchange_strong_explicit(OBJ, EXP, DES, MO)	\
++	atomic_compare_exchange_strong((OBJ), (EXP), (DES))
++#define atomic_compare_exchange_weak(OBJ, EXP, DES)			\
++	atomic_compare_exchange_strong((OBJ), (EXP), (DES))
++#define atomic_compare_exchange_weak_explicit(OBJ, EXP, DES, MO)	\
++	atomic_compare_exchange_weak((OBJ), (EXP), (DES))
++#define atomic_fetch_add(OBJ, VAL)				\
++	({								            \
++        int			lockKey;                    \
++        typeof(OBJ) obj = (OBJ);				\
++        typeof(VAL) val = (VAL);				\
++        typeof(*obj) oldval;                    \
++        lockKey = KERNEL_INT_CPU_LOCK ();       \
++        oldval = *obj;	                        \
++        *obj = oldval + val;					\
++        KERNEL_INT_CPU_UNLOCK (lockKey);        \
++        oldval;					                \
++	})
++#define atomic_fetch_add_explicit(OBJ, VAL, MO)		\
++	atomic_fetch_add((OBJ), (VAL))
++#define atomic_fetch_sub(OBJ, VAL)				\
++	({								            \
++	    int			lockKey;                    \
++		typeof(OBJ) obj = (OBJ);				\
++		typeof(VAL) val = (VAL);				\
++		typeof(*obj) oldval;                    \
++		lockKey = KERNEL_INT_CPU_LOCK ();       \
++		oldval = *obj;	                        \
++		*obj = oldval - val;					\
++        KERNEL_INT_CPU_UNLOCK (lockKey);        \
++		oldval;					                \
++	})
++#define atomic_fetch_sub_explicit(OBJ, VAL, MO)		\
++	atomic_fetch_sub((OBJ), (VAL))
++#define atomic_fetch_or(OBJ, VAL)				\
++	({								            \
++	    int			lockKey;                    \
++		typeof(OBJ) obj = (OBJ);				\
++		typeof(VAL) val = (VAL);				\
++		typeof(*obj) oldval;                    \
++		lockKey = KERNEL_INT_CPU_LOCK ();       \
++		oldval = *obj;	                        \
++		*obj = oldval | val;					\
++        KERNEL_INT_CPU_UNLOCK (lockKey);        \
++		oldval;					                \
++	})
++#define atomic_fetch_or_explicit(OBJ, VAL, MO)		\
++	atomic_fetch_or((OBJ), (VAL))
++#define atomic_fetch_xor(OBJ, VAL)				\
++	({								            \
++	    int			lockKey;                    \
++		typeof(OBJ) obj = (OBJ);				\
++		typeof(VAL) val = (VAL);				\
++		typeof(*obj) oldval;                    \
++		lockKey = KERNEL_INT_CPU_LOCK ();       \
++		oldval = *obj;	                        \
++		*obj = oldval ^ val;					\
++        KERNEL_INT_CPU_UNLOCK (lockKey);        \
++		oldval;					                \
++	})
++#define atomic_fetch_xor_explicit(OBJ, VAL, MO)		\
++	atomic_fetch_xor((OBJ), (VAL))
++#define atomic_fetch_and(OBJ, VAL)				\
++	({								            \
++	    int			lockKey;                    \
++		typeof(OBJ) obj = (OBJ);				\
++		typeof(VAL) val = (VAL);				\
++		typeof(*obj) oldval;                    \
++		lockKey = KERNEL_INT_CPU_LOCK ();       \
++		oldval = *obj;	                        \
++		*obj = oldval & val;					\
++        KERNEL_INT_CPU_UNLOCK (lockKey);        \
++		oldval;					                \
++	})
++#define atomic_fetch_and_explicit(OBJ, VAL, MO)		\
++	atomic_fetch_and((OBJ), (VAL))
++#define atomic_thread_fence(MO)					\
++	__sync_synchronize()
++#define atomic_signal_fence(MO)					\
++	__sync_synchronize()
++
++#ifdef __cplusplus
++}
++#endif
++
+ #endif /* __METAL_ARM_ATOMIC__H__ */
+diff -uparN libmetal-2016.10/lib/system/Makefile libmetal/lib/system/Makefile
+--- libmetal-2016.10/lib/system/Makefile	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/Makefile	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,51 @@
++# Makefile - makefile for libmetal on vxworks support library
++#
++# Copyright (c) 2016 Wind River Systems, Inc. 
++# 
++# Redistribution and use in source and binary forms, with or without modification, are 
++# permitted provided that the following conditions are met: 
++# 
++# 1) Redistributions of source code must retain the above copyright notice, 
++# this list of conditions and the following disclaimer. 
++# 
++# 2) Redistributions in binary form must reproduce the above copyright notice, 
++# this list of conditions and the following disclaimer in the documentation and/or 
++# other materials provided with the distribution. 
++# 
++# 3) Neither the name of Wind River Systems nor the names of its contributors may be 
++# used to endorse or promote products derived from this software without specific 
++# prior written permission. 
++# 
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
++# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
++# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
++# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
++# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
++# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
++# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
++# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
++# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
++# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
++#
++# modification history
++# --------------------
++# 16dec16,ghl  create for OpenAMP-v201610 (F8373) 
++#
++# DESCRIPTION
++# This file contains the makefile rules for building libmetal on vxworks library.
++#
++
++LIB_BASE_NAME = OPENAMP
++
++include $(WIND_KRNL_MK)/defs.library.mk
++
++SUBDIRS = vxworks
++
++OBJS_ARMARCH7M = 
++OBJS_ARMARCH7 = 
++
++include $(wildcard $(sort *.mk))
++
++OBJS=$(OBJS_$(CPU))
++
++include $(WIND_KRNL_MK)/rules.library.mk
+diff -uparN libmetal-2016.10/lib/system/vxworks/alloc.h libmetal/lib/system/vxworks/alloc.h
+--- libmetal-2016.10/lib/system/vxworks/alloc.h	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/alloc.h	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,61 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/alloc.h
++ * @brief	vxworks libmetal memory allocattion definitions.
++ */
++
++#ifndef __METAL_ALLOC__H__
++#error "Include metal/alloc.h instead of metal/vxworks/alloc.h"
++#endif
++
++#ifndef __METAL_VXWORKS_ALLOC__H__
++#define __METAL_VXWORKS_ALLOC__H__
++
++#include <stdlib.h>
++
++
++static inline void *metal_allocate_memory(unsigned int size)
++{
++	return (malloc(size));
++}
++
++static inline void metal_free_memory(void *ptr)
++{
++	free(ptr);
++}
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* __METAL_VXWORKS_ALLOC__H__ */
+diff -uparN libmetal-2016.10/lib/system/vxworks/CMakeLists.txt libmetal/lib/system/vxworks/CMakeLists.txt
+--- libmetal-2016.10/lib/system/vxworks/CMakeLists.txt	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/CMakeLists.txt	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,20 @@
++collect (PROJECT_LIB_HEADERS mutex.h)
++collect (PROJECT_LIB_HEADERS sys.h)
++#collect (PROJECT_LIB_HEADERS condition.h)
++collect (PROJECT_LIB_HEADERS alloc.h)
++collect (PROJECT_LIB_HEADERS irq.h)
++
++collect (PROJECT_LIB_SOURCES init.c)
++collect (PROJECT_LIB_SOURCES shmem.c)
++collect (PROJECT_LIB_SOURCES firmware.c)
++collect (PROJECT_LIB_SOURCES cache.c)
++collect (PROJECT_LIB_SOURCES io.c)
++collect (PROJECT_LIB_SOURCES irq.c)
++collect (PROJECT_LIB_SOURCES time.c)
++collect (PROJECT_LIB_SOURCES sleep.c)
++
++if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_MACHINE})
++  add_subdirectory(${PROJECT_MACHINE})
++endif (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_MACHINE})
++
++# vim: expandtab:ts=2:sw=2:smartindent
+diff -uparN libmetal-2016.10/lib/system/vxworks/irq.h libmetal/lib/system/vxworks/irq.h
+--- libmetal-2016.10/lib/system/vxworks/irq.h	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/irq.h	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,55 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/irq.h
++ * @brief	vxworks libmetal irq definitions.
++ */
++
++#ifndef __METAL_IRQ__H__
++#error "Include metal/irq.h instead of metal/vxworks/irq.h"
++#endif
++
++#ifndef __METAL_VXWORKS_IRQ__H__
++#define __METAL_VXWORKS_IRQ__H__
++
++/**
++ * @brief      default interrupt handler 
++ * @param[in]  interrupt vector
++ */
++void metal_irq_isr(unsigned int vector);
++
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* __METAL_VXWORKS_IRQ__H__ */
+diff -uparN libmetal-2016.10/lib/system/vxworks/Makefile libmetal/lib/system/vxworks/Makefile
+--- libmetal-2016.10/lib/system/vxworks/Makefile	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/Makefile	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,51 @@
++# Makefile - makefile for libmetal on vxworks system support library
++#
++# Copyright (c) 2016 Wind River Systems, Inc. 
++# 
++# Redistribution and use in source and binary forms, with or without modification, are 
++# permitted provided that the following conditions are met: 
++# 
++# 1) Redistributions of source code must retain the above copyright notice, 
++# this list of conditions and the following disclaimer. 
++# 
++# 2) Redistributions in binary form must reproduce the above copyright notice, 
++# this list of conditions and the following disclaimer in the documentation and/or 
++# other materials provided with the distribution. 
++# 
++# 3) Neither the name of Wind River Systems nor the names of its contributors may be 
++# used to endorse or promote products derived from this software without specific 
++# prior written permission. 
++# 
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
++# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
++# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
++# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
++# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
++# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
++# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
++# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
++# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
++# USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
++#
++# modification history
++# --------------------
++# 16dec16,ghl  create for OpenAMP-v201610 (F8373) 
++#
++# DESCRIPTION
++# This file contains the makefile rules for building libmetal on vxworks 
++# system.
++#
++
++LIB_BASE_NAME = OPENAMP
++include $(WIND_KRNL_MK)/defs.library.mk
++
++DOC_FILES      = vx_cache.c vx_init.c vx_io.c vx_irq.c vx_shmem.c vx_sleep.c vx_time.c vx_firmware.c
++
++OBJS_ARMARCH7M = vx_cache.o vx_init.o vx_io.o vx_irq.o vx_shmem.o vx_sleep.o vx_time.o vx_firmware.o
++OBJS_ARMARCH7  = vx_cache.o vx_init.o vx_io.o vx_irq.o vx_shmem.o vx_sleep.o vx_time.o vx_firmware.o
++
++include $(wildcard $(sort *.mk))
++
++OBJS=$(OBJS_$(CPU))
++
++include $(WIND_KRNL_MK)/rules.library.mk
+diff -uparN libmetal-2016.10/lib/system/vxworks/mutex.h libmetal/lib/system/vxworks/mutex.h
+--- libmetal-2016.10/lib/system/vxworks/mutex.h	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/mutex.h	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,86 @@
++/*
++ * Copyright (c) 2015, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/mutex.h
++ * @brief	vxworks mutex primitives for libmetal.
++ */
++
++#ifndef __METAL_MUTEX__H__
++#error "Include metal/mutex.h instead of metal/vxworks/mutex.h"
++#endif
++
++#ifndef __METAL_VXWORKS_MUTEX__H__
++#define __METAL_VXWORKS_MUTEX__H__
++
++#include <vxWorks.h>
++#include <semLib.h>
++#include "metal/atomic.h"
++
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++typedef struct {
++    SEM_ID v;
++} metal_mutex_t;
++
++#define METAL_MUTEX_INIT		{ ATOMIC_VAR_INIT(0) }
++
++static inline void metal_mutex_init(metal_mutex_t *mutex)
++{
++    mutex->v = semBCreate (SEM_Q_FIFO, SEM_FULL);
++}
++
++static inline void metal_mutex_deinit(metal_mutex_t *mutex)
++{
++    if (mutex->v)
++    {
++        semDelete(mutex->v);
++    }
++}
++
++static inline void metal_mutex_acquire(metal_mutex_t *mutex)
++{
++    semTake(mutex->v, WAIT_FOREVER);
++}
++
++static inline void metal_mutex_release(metal_mutex_t *mutex)
++{
++    semGive(mutex->v);
++}
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* __METAL_VXWORKS_MUTEX__H__ */
+diff -uparN libmetal-2016.10/lib/system/vxworks/sys.h libmetal/lib/system/vxworks/sys.h
+--- libmetal-2016.10/lib/system/vxworks/sys.h	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/sys.h	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,109 @@
++/*
++ * Copyright (c) 2015, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/sys.h
++ * @brief	vxworks system primitives for libmetal.
++ */
++
++#ifndef __METAL_SYS__H__
++#error "Include metal/sys.h instead of metal/vxworks/sys.h"
++#endif
++
++#ifndef __METAL_VXWORKS_SYS__H__
++#define __METAL_VXWORKS_SYS__H__
++
++#include <errno.h>
++#include <fcntl.h>
++/*#include <libgen.h>*/
++#include <limits.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <stdarg.h>
++#include <string.h>
++
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#ifndef METAL_MAX_DEVICE_REGIONS
++#define METAL_MAX_DEVICE_REGIONS 1
++#endif
++
++/** Structure of generic libmetal runtime state. */
++struct metal_state {
++
++	/** Common (system independent) data. */
++	struct metal_common_state common;
++};
++
++#ifdef METAL_INTERNAL
++
++/**
++ * @brief restore interrupts to state before disable_global_interrupt()
++ */
++void sys_irq_restore_enable(void);
++
++/**
++ * @brief disable all interrupts
++ */
++void sys_irq_save_disable(void);
++
++#endif /* METAL_INTERNAL */
++
++typedef int (* openamp_ipi_enable)(int);
++typedef int (* openamp_ipi_disable)(int);
++typedef void (* openamp_ipi_notify)(int);
++typedef int (* openamp_ipi_register)(int, void *, void *);
++
++extern openamp_ipi_enable vx_openamp_ipi_enable;
++extern openamp_ipi_disable vx_openamp_ipi_disable;
++extern openamp_ipi_notify vx_openamp_ipi_notify;
++extern openamp_ipi_register vx_openamp_ipi_register;
++
++static inline void sys_irq_enable(unsigned int vector)
++{
++    if (vx_openamp_ipi_enable)
++        vx_openamp_ipi_enable(vector);
++}
++
++static inline void sys_irq_disable(unsigned int vector)
++{
++    if (vx_openamp_ipi_disable)
++        vx_openamp_ipi_disable(vector);
++}
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* __METAL_VXWORKS_SYS__H__ */
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_cache.c libmetal/lib/system/vxworks/vx_cache.c
+--- libmetal-2016.10/lib/system/vxworks/vx_cache.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_cache.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,52 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/vx_cache.c
++ * @brief	vxworks libmetal cache handling.
++ */
++
++#include <vxWorks.h>
++#include <cacheLib.h>
++#include "metal/cache.h"
++
++void metal_cache_flush(void *addr, unsigned int len)
++{
++    cacheFlush(DATA_CACHE, addr, len);
++    return;
++}
++
++void metal_cache_invalidate(void *addr, unsigned int len)
++{
++    cacheInvalidate(DATA_CACHE, addr, len);
++    return;
++}
++
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_firmware.c libmetal/lib/system/vxworks/vx_firmware.c
+--- libmetal-2016.10/lib/system/vxworks/vx_firmware.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_firmware.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,99 @@
++/* vx_firmware.c - initialize remote firmware info */
++
++/* 
++* Copyright (c) 2017 Wind River Systems, Inc. 
++* 
++* Redistribution and use in source and binary forms, with or without modification, are 
++* permitted provided that the following conditions are met: 
++* 
++* 1) Redistributions of source code must retain the above copyright notice, 
++* this list of conditions and the following disclaimer. 
++* 
++* 2) Redistributions in binary form must reproduce the above copyright notice, 
++* this list of conditions and the following disclaimer in the documentation and/or 
++* other materials provided with the distribution. 
++* 
++* 3) Neither the name of Wind River Systems nor the names of its contributors may be 
++* used to endorse or promote products derived from this software without specific 
++* prior written permission. 
++* 
++* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
++* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
++* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
++* ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
++* LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
++* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR 
++* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER 
++* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
++* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE 
++* USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
++*/
++
++/*
++modification history
++--------------------
++05Jan17,ghl  init firmware info
++*/
++
++#include <vxWorks.h>
++#include <ioLib.h>
++#include <stdlib.h>
++#include <sys/stat.h>
++#include <string.h>
++#include "openamp/firmware.h"
++
++int metal_init_fw_info(struct firmware_info *fw_info)
++{
++    struct stat stat_buffer;
++    int         fd;
++    char        *buffer = NULL;
++    int64_t     maxbytes, nbytes;
++
++    /* check firmware file existence */
++    if (stat (fw_info->name, &stat_buffer) != 0)
++    {
++        openamp_dbg ("Cannot find %s\n", fw_info->name);
++        return (-1);
++    }
++
++    if (stat_buffer.st_size == 0)
++    {
++        return (-2);
++    }
++       
++    buffer = malloc((unsigned int)stat_buffer.st_size + 0x10);/* allocate extra 0x10 bytes */
++    if (NULL == buffer) 
++    {
++        openamp_dbg("cannot allocate memory up to size:%d\n", stat_buffer.st_size);
++        return (-3);
++    }
++
++    if ((fd = open (fw_info->name, O_RDONLY, 0)) == ERROR)
++    {
++        openamp_dbg ("Could not open file \'%s\'\n", fw_info->name);
++        free(buffer);
++        return (ERROR);
++    }
++
++    fw_info->start_addr = buffer;
++    maxbytes = stat_buffer.st_size;
++    while (maxbytes > 0)
++    {
++        nbytes = read (fd, buffer, maxbytes);
++        if (nbytes <= 0)
++        {
++            free((void *)fw_info->start_addr);
++            fw_info->start_addr = 0;
++            close (fd);
++            return (-4);
++        }
++
++        maxbytes -= nbytes;
++        buffer   += nbytes;
++    }
++    fw_info->end_addr = buffer;
++           
++    close (fd);
++    return 0;
++}
++
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_init.c libmetal/lib/system/vxworks/vx_init.c
+--- libmetal-2016.10/lib/system/vxworks/vx_init.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_init.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,58 @@
++/*
++ * Copyright (c) 2015, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/init.c
++ * @brief	vxworks libmetal initialization.
++ */
++
++#include "metal/sys.h"
++#include "metal/utilities.h"
++#include "openamp/env.h"
++#include <ioLib.h>
++#include <sys/stat.h>
++
++extern int metal_irq_init(void);
++extern void metal_irq_deinit(void);
++
++struct metal_state _metal;
++
++int metal_sys_init(const struct metal_init_params *params)
++{
++	metal_unused(params);
++	return 0;
++}
++
++void metal_sys_finish(void)
++{
++	return;
++}
++
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_io.c libmetal/lib/system/vxworks/vx_io.c
+--- libmetal-2016.10/lib/system/vxworks/vx_io.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_io.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,46 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/io.c
++ * @brief	vxworks libmetal I/O handling.
++ */
++
++#include "metal/io.h"
++#include "metal/utilities.h"
++
++void *metal_io_mem_map(metal_phys_addr_t pa,
++		       struct metal_io_region *io, size_t size)
++{
++	metal_unused(size);
++	return metal_io_phys_to_virt(io, pa);
++}
++
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_irq.c libmetal/lib/system/vxworks/vx_irq.c
+--- libmetal-2016.10/lib/system/vxworks/vx_irq.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_irq.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,87 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/irq.c
++ * @brief	vxworks libmetal irq definitions.
++ */
++
++#include <errno.h>
++#include "metal/utilities.h"
++#include "metal/irq.h"
++#include "metal/sys.h"
++#include "metal/log.h"
++#include "metal/mutex.h"
++
++
++openamp_ipi_register vx_openamp_ipi_register = NULL;
++openamp_ipi_enable vx_openamp_ipi_enable = NULL;
++openamp_ipi_disable vx_openamp_ipi_disable = NULL;
++openamp_ipi_notify vx_openamp_ipi_notify = NULL;
++
++int metal_irq_register(int irq,
++                       metal_irq_handler hd,
++                       struct metal_device *dev,
++                       void *drv_id)
++{
++    unsigned int irq_flags_save;
++
++	metal_unused(dev);
++    irq_flags_save = metal_irq_save_disable();
++    if (vx_openamp_ipi_register != NULL)
++    {
++        vx_openamp_ipi_register(irq, drv_id, (void *)hd);
++    }
++    metal_irq_restore_enable(irq_flags_save);
++    
++    return 0;
++}
++
++unsigned int metal_irq_save_disable(void)
++{
++    return (unsigned int)intCpuLock();
++}
++
++void metal_irq_restore_enable(unsigned int flags)
++{
++    intCpuUnlock((int)flags);
++}
++
++void metal_irq_enable(unsigned int vector)
++{
++    sys_irq_enable(vector);
++}
++
++void metal_irq_disable(unsigned int vector)
++{
++    sys_irq_disable(vector);
++}
++
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_shmem.c libmetal/lib/system/vxworks/vx_shmem.c
+--- libmetal-2016.10/lib/system/vxworks/vx_shmem.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_shmem.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,43 @@
++/*
++ * Copyright (c) 2015, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/shmem.c
++ * @brief	vxworks libmetal shared memory handling.
++ */
++
++#include "metal/shmem.h"
++
++int metal_shmem_open(const char *name, size_t size,
++		     struct metal_io_region **io)
++{
++	return metal_shmem_open_generic(name, size, io);
++}
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_sleep.c libmetal/lib/system/vxworks/vx_sleep.c
+--- libmetal-2016.10/lib/system/vxworks/vx_sleep.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_sleep.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,47 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/sleep.c
++ * @brief	vxworks libmetal sleep handling.
++ */
++
++#include "metal/sleep.h"
++
++extern void vxbUsDelay(int delayTime);
++
++int metal_sleep_usec(unsigned int usec)
++{
++	/* TODO: Implement usleep fo generic system */
++    vxbUsDelay(usec);
++	return 0;
++}
++
+diff -uparN libmetal-2016.10/lib/system/vxworks/vx_time.c libmetal/lib/system/vxworks/vx_time.c
+--- libmetal-2016.10/lib/system/vxworks/vx_time.c	1970-01-01 08:00:00.000000000 +0800
++++ libmetal/lib/system/vxworks/vx_time.c	2017-02-24 14:39:46.000000000 +0800
+@@ -0,0 +1,45 @@
++/*
++ * Copyright (c) 2016, Xilinx Inc. and Contributors. All rights reserved.
++ * Copyright (c) 2016, Wind River System, Inc. All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright notice,
++ *    this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright notice,
++ *    this list of conditions and the following disclaimer in the documentation
++ *    and/or other materials provided with the distribution.
++ *
++ * 3. Neither the name of Xilinx nor the names of its contributors may be used
++ *    to endorse or promote products derived from this software without
++ *    specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * @file	vxworks/time.c
++ * @brief	vxworks libmetal time handling.
++ */
++
++#include "metal/time.h"
++#include <tickLib.h>
++
++unsigned long long metal_get_timestamp(void)
++{
++	/* TODO: Implement timestamp for generic system */
++	return tick64Get();
++}
++
