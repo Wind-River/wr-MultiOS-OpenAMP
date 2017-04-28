@@ -1,6 +1,6 @@
 diff -uparN open-amp-2016.10/lib/common/hil.c openamp/lib/common/hil.c
 --- open-amp-2016.10/lib/common/hil.c	2016-11-05 00:18:46.000000000 +0800
-+++ openamp/lib/common/hil.c	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/common/hil.c	2017-04-21 15:48:02.000000000 +0800
 @@ -1,6 +1,7 @@
  /*
   * Copyright (c) 2014, Mentor Graphics Corporation
@@ -20,7 +20,7 @@ diff -uparN open-amp-2016.10/lib/common/hil.c openamp/lib/common/hil.c
  static METAL_DECLARE_LIST (procs);
 diff -uparN open-amp-2016.10/lib/common/Makefile openamp/lib/common/Makefile
 --- open-amp-2016.10/lib/common/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/common/Makefile	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/common/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,50 @@
 +# Makefile - makefile for OpenAMP common
 +#
@@ -74,7 +74,7 @@ diff -uparN open-amp-2016.10/lib/common/Makefile openamp/lib/common/Makefile
 +include $(WIND_KRNL_MK)/rules.library.mk
 diff -uparN open-amp-2016.10/lib/include/openamp/compiler.h openamp/lib/include/openamp/compiler.h
 --- open-amp-2016.10/lib/include/openamp/compiler.h	2016-11-05 00:18:46.000000000 +0800
-+++ openamp/lib/include/openamp/compiler.h	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/include/openamp/compiler.h	2017-04-21 15:48:02.000000000 +0800
 @@ -5,6 +5,7 @@
   * Copyright (c) 2014, Mentor Graphics Corporation
   * All rights reserved.
@@ -103,7 +103,7 @@ diff -uparN open-amp-2016.10/lib/include/openamp/compiler.h openamp/lib/include/
  #error Please implement the structure packing macros for your compiler here!
 diff -uparN open-amp-2016.10/lib/include/openamp/open_amp_vx.h openamp/lib/include/openamp/open_amp_vx.h
 --- open-amp-2016.10/lib/include/openamp/open_amp_vx.h	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/include/openamp/open_amp_vx.h	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/include/openamp/open_amp_vx.h	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,68 @@
 +/* 
 +* Copyright (c) 2016 Wind River Systems, Inc. 
@@ -173,9 +173,29 @@ diff -uparN open-amp-2016.10/lib/include/openamp/open_amp_vx.h openamp/lib/inclu
 +
 +#endif /* OPEN_AMP_DBG_H_ */
 +
+diff -uparN open-amp-2016.10/lib/include/openamp/remoteproc.h openamp/lib/include/openamp/remoteproc.h
+--- open-amp-2016.10/lib/include/openamp/remoteproc.h	2016-11-05 00:18:46.000000000 +0800
++++ openamp/lib/include/openamp/remoteproc.h	2017-04-27 16:27:16.000000000 +0800
+@@ -4,6 +4,7 @@
+  * Copyright(c) 2011 Texas Instruments, Inc.
+  * Copyright(c) 2011 Google, Inc.
+  * All rights reserved.
++ * Copyright (c) 2017 Wind River System, Inc. All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions
+@@ -360,7 +361,7 @@ struct rsc_table_info {
+ #define RPROC_MASTER                            1
+ #define RPROC_REMOTE                            0
+ /* Number of msecs to wait for remote context to come up */
+-#define RPROC_BOOT_DELAY                        500
++#define RPROC_BOOT_DELAY                        500 * 1000
+ 
+ /* Remoteproc error codes */
+ #define RPROC_ERR_BASE                          -4000
 diff -uparN open-amp-2016.10/lib/Makefile openamp/lib/Makefile
 --- open-amp-2016.10/lib/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/Makefile	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,48 @@
 +# Makefile - makefile for OpenAMP library on vxworks-7
 +#
@@ -227,7 +247,7 @@ diff -uparN open-amp-2016.10/lib/Makefile openamp/lib/Makefile
 +
 diff -uparN open-amp-2016.10/lib/proxy/Makefile openamp/lib/proxy/Makefile
 --- open-amp-2016.10/lib/proxy/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/proxy/Makefile	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/proxy/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,50 @@
 +# Makefile - makefile for OpenAMP proxy
 +#
@@ -281,7 +301,7 @@ diff -uparN open-amp-2016.10/lib/proxy/Makefile openamp/lib/proxy/Makefile
 +include $(WIND_KRNL_MK)/rules.library.mk
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/helper.c openamp/lib/remoteproc/drivers/imx6sx/helper.c
 --- open-amp-2016.10/lib/remoteproc/drivers/imx6sx/helper.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/imx6sx/helper.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/imx6sx/helper.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,115 @@
 +
 +/*
@@ -400,7 +420,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/helper.c openamp/lib/
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c openamp/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c
 --- open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,299 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -703,7 +723,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c openamp/
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9_info.c openamp/lib/remoteproc/drivers/imx6sx/imx6sx_ca9_info.c
 --- open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9_info.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_ca9_info.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_ca9_info.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,145 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -852,7 +872,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9_info.c ope
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c openamp/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c
 --- open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,199 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -1055,7 +1075,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c openamp/
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4_info.c openamp/lib/remoteproc/drivers/imx6sx/imx6sx_cm4_info.c
 --- open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4_info.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_cm4_info.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/imx6sx/imx6sx_cm4_info.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,123 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -1182,7 +1202,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4_info.c ope
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/Makefile openamp/lib/remoteproc/drivers/imx6sx/Makefile
 --- open-amp-2016.10/lib/remoteproc/drivers/imx6sx/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/imx6sx/Makefile	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/imx6sx/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,50 @@
 +# Makefile - makefile for Freescale i.MX processor support library
 +#
@@ -1236,7 +1256,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/Makefile openamp/lib/
 +include $(WIND_KRNL_MK)/rules.library.mk
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/Makefile openamp/lib/remoteproc/drivers/Makefile
 --- open-amp-2016.10/lib/remoteproc/drivers/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/Makefile	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,55 @@
 +# Makefile - makefile for platform remoteproc driver
 +#
@@ -1295,7 +1315,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/Makefile openamp/lib/remotep
 +include $(WIND_KRNL_MK)/rules.library.mk
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/helper.c openamp/lib/remoteproc/drivers/sitara/helper.c
 --- open-amp-2016.10/lib/remoteproc/drivers/sitara/helper.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/sitara/helper.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/sitara/helper.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,115 @@
 +
 +/*
@@ -1414,7 +1434,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/helper.c openamp/lib/
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/Makefile openamp/lib/remoteproc/drivers/sitara/Makefile
 --- open-amp-2016.10/lib/remoteproc/drivers/sitara/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/sitara/Makefile	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/sitara/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,50 @@
 +# Makefile - makefile for TI AM572x support library
 +#
@@ -1468,7 +1488,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/Makefile openamp/lib/
 +include $(WIND_KRNL_MK)/rules.library.mk
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15.c openamp/lib/remoteproc/drivers/sitara/sitara_ca15.c
 --- open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/sitara/sitara_ca15.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/sitara/sitara_ca15.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,605 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -2077,7 +2097,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15.c openamp
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15_info.c openamp/lib/remoteproc/drivers/sitara/sitara_ca15_info.c
 --- open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15_info.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/sitara/sitara_ca15_info.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/sitara/sitara_ca15_info.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,141 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -2222,7 +2242,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15_info.c op
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4.c openamp/lib/remoteproc/drivers/sitara/sitara_cm4.c
 --- open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/sitara/sitara_cm4.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/sitara/sitara_cm4.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,202 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -2428,7 +2448,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4.c openamp/
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4_info.c openamp/lib/remoteproc/drivers/sitara/sitara_cm4_info.c
 --- open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4_info.c	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/drivers/sitara/sitara_cm4_info.c	2017-02-24 14:39:33.000000000 +0800
++++ openamp/lib/remoteproc/drivers/sitara/sitara_cm4_info.c	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,121 @@
 +/*
 + * Copyright (c) 2014, Mentor Graphics Corporation
@@ -2553,7 +2573,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4_info.c ope
 +
 diff -uparN open-amp-2016.10/lib/remoteproc/elf_loader.c openamp/lib/remoteproc/elf_loader.c
 --- open-amp-2016.10/lib/remoteproc/elf_loader.c	2016-11-05 00:18:46.000000000 +0800
-+++ openamp/lib/remoteproc/elf_loader.c	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/remoteproc/elf_loader.c	2017-04-21 15:48:02.000000000 +0800
 @@ -1,6 +1,7 @@
  /*
   * Copyright (c) 2014, Mentor Graphics Corporation
@@ -2573,7 +2593,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/elf_loader.c openamp/lib/remoteproc/
  							     current->sh_size);
 diff -uparN open-amp-2016.10/lib/remoteproc/Makefile openamp/lib/remoteproc/Makefile
 --- open-amp-2016.10/lib/remoteproc/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/remoteproc/Makefile	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/remoteproc/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,50 @@
 +# Makefile - makefile for OpenAMP remoteproc
 +#
@@ -2627,7 +2647,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/Makefile openamp/lib/remoteproc/Make
 +include $(WIND_KRNL_MK)/rules.library.mk
 diff -uparN open-amp-2016.10/lib/remoteproc/remoteproc.c openamp/lib/remoteproc/remoteproc.c
 --- open-amp-2016.10/lib/remoteproc/remoteproc.c	2016-11-05 00:18:46.000000000 +0800
-+++ openamp/lib/remoteproc/remoteproc.c	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/remoteproc/remoteproc.c	2017-04-21 15:48:02.000000000 +0800
 @@ -2,6 +2,7 @@
   * Copyright (c) 2014, Mentor Graphics Corporation
   * All rights reserved.
@@ -2646,7 +2666,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/remoteproc.c openamp/lib/remoteproc/
  			    hil_get_firmware(fw_name, &fw_addr,
 diff -uparN open-amp-2016.10/lib/rpmsg/Makefile openamp/lib/rpmsg/Makefile
 --- open-amp-2016.10/lib/rpmsg/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/rpmsg/Makefile	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/rpmsg/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,50 @@
 +# Makefile - makefile for OpenAMP rpmsg
 +#
@@ -2700,7 +2720,7 @@ diff -uparN open-amp-2016.10/lib/rpmsg/Makefile openamp/lib/rpmsg/Makefile
 +include $(WIND_KRNL_MK)/rules.library.mk
 diff -uparN open-amp-2016.10/lib/virtio/Makefile openamp/lib/virtio/Makefile
 --- open-amp-2016.10/lib/virtio/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ openamp/lib/virtio/Makefile	2017-02-24 14:39:34.000000000 +0800
++++ openamp/lib/virtio/Makefile	2017-04-21 15:48:02.000000000 +0800
 @@ -0,0 +1,51 @@
 +# Makefile - makefile for OpenAMP virtio
 +#
