@@ -1284,3 +1284,15 @@ diff -uparN libmetal-2016.10/lib/system/vxworks/vx_time.c libmetal/lib/system/vx
 +	return tick64Get();
 +}
 +
+diff -uparN libmetal-2016.10/lib/config.h libmetal/lib/config.h
+--- libmetal-2016.10/lib/config.h	2019-05-07 17:55:09.638964435 +0800
++++ libmetal/lib/config.h	2019-05-07 17:54:05.971328179 +0800
+@@ -64,7 +64,7 @@ extern "C" {
+ #define METAL_MACHINE		"@PROJECT_MACHINE@"
+ #define METAL_MACHINE_@PROJECT_MACHINE_UPPER@
+ 
+-#cmakedefine HAVE_STDATOMIC_H
++#define HAVE_STDATOMIC_H
+ #cmakedefine HAVE_FUTEX_H
+ 
+ #ifdef __cplusplus

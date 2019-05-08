@@ -557,7 +557,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c openamp/
 +    (void) vect_id;
 +    
 +    intr_info = &(vring_hw->intr_info);
-+    atomic_flag_clear((atomic_uint *)&(intr_info->data));
++    atomic_flag_clear((atomic_flag *)&(intr_info->data));
 +    
 +    OPEN_AMP_DBG(2, "vector=%d,data=%p\n", vect_id, data);
 +    
@@ -575,7 +575,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_ca9.c openamp/
 +        vring = &proc->vdev.vring_info[i];
 +        intr_info = &(vring->intr_info);
 +        if (!(atomic_flag_test_and_set(
-+            (atomic_uint *)&(intr_info->data)))) {
++            (atomic_flag *)&(intr_info->data)))) {
 +            virtqueue_notification(vring->vq);
 +            kicked = 1;
 +            if (i)
@@ -991,7 +991,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c openamp/
 +        vring = &proc->vdev.vring_info[i];
 +        intr_info = &(vring->intr_info);
 +        if (!(atomic_flag_test_and_set(
-+            (atomic_uint *)&(intr_info->data)))) {
++            (atomic_flag *)&(intr_info->data)))) {
 +            virtqueue_notification(vring->vq);
 +            kicked = 1;
 +            if (i)
@@ -1041,7 +1041,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/imx6sx/imx6sx_cm4.c openamp/
 +    (void) vect_id;
 +    
 +    intr_info = &(vring_hw->intr_info);
-+    atomic_flag_clear((atomic_uint *)&(intr_info->data));
++    atomic_flag_clear((atomic_flag *)&(intr_info->data));
 +
 +    OPEN_AMP_DBG(2, "vector=%d,data=%p\n", vect_id, data);
 +
@@ -1626,7 +1626,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15.c openamp
 +    (void) vect_id;
 +    
 +    intr_info = &(vring_hw->intr_info);
-+    atomic_flag_clear((atomic_uint *)&(intr_info->data));
++    atomic_flag_clear((atomic_flag *)&(intr_info->data));
 +
 +    OPEN_AMP_DBG(3, "vector=%d,data=%p\n", vect_id, data);
 +
@@ -1644,7 +1644,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_ca15.c openamp
 +        vring = &proc->vdev.vring_info[i];
 +        intr_info = &(vring->intr_info);
 +        if (!(atomic_flag_test_and_set(
-+            (atomic_uint *)&(intr_info->data)))) {
++            (atomic_flag *)&(intr_info->data)))) {
 +            virtqueue_notification(vring->vq);
 +            kicked = 1;
 +            if (i)
@@ -2364,7 +2364,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4.c openamp/
 +    (void) vect_id;
 +    
 +    intr_info = &(vring_hw->intr_info);
-+    atomic_flag_clear((atomic_uint *)&(intr_info->data));
++    atomic_flag_clear((atomic_flag *)&(intr_info->data));
 +
 +    OPEN_AMP_DBG(3, "vector=%d,data=%p\n", vect_id, data);
 +
@@ -2382,7 +2382,7 @@ diff -uparN open-amp-2016.10/lib/remoteproc/drivers/sitara/sitara_cm4.c openamp/
 +        vring = &proc->vdev.vring_info[i];
 +        intr_info = &(vring->intr_info);
 +        if (!(atomic_flag_test_and_set(
-+            (atomic_uint *)&(intr_info->data)))) {
++            (atomic_flag *)&(intr_info->data)))) {
 +            virtqueue_notification(vring->vq);
 +            kicked = 1;
 +            if (i)
@@ -2773,3 +2773,48 @@ diff -uparN open-amp-2016.10/lib/virtio/Makefile openamp/lib/virtio/Makefile
 +OBJS=$(OBJS_$(CPU))
 +
 +include $(WIND_KRNL_MK)/rules.library.mk
+diff -uparN open-amp-2016.10/lib/include/openamp/rpmsg_retarget.h openamp/lib/include/openamp/rpmsg_retarget.h
+--- open-amp-2016.10/lib/include/openamp/rpmsg_retarget.h	2016-11-05 00:18:46.000000000 +0800
++++ openamp/lib/include/openamp/rpmsg_retarget.h	2019-05-07 17:59:01.729683028 +0800
+@@ -24,7 +24,7 @@ struct _rpc_data {
+ 	struct rpmsg_channel *rpmsg_chnl;
+ 	struct rpmsg_endpoint *rp_ept;
+ 	metal_mutex_t rpc_lock;
+-	atomic_int sync;
++	atomic_flag sync;
+ 	struct _sys_rpc *rpc;
+ 	struct _sys_rpc *rpc_response;
+ 	rpc_shutdown_cb shutdown_cb;
+diff -uparN open-amp-2016.10/lib/proxy/rpmsg_retarget.c openamp/lib/proxy/rpmsg_retarget.c
+--- open-amp-2016.10/lib/proxy/rpmsg_retarget.c	2016-11-05 00:18:46.000000000 +0800
++++ openamp/lib/proxy/rpmsg_retarget.c	2019-05-07 17:59:36.297499961 +0800
+@@ -48,7 +48,7 @@ int rpmsg_retarget_init(struct rpmsg_cha
+ 	metal_mutex_init(&rpc_data->rpc_lock);
+ 
+ 	/* Create a mutex for synchronization */
+-	atomic_store(&rpc_data->sync, 1);
++	atomic_flag_test_and_set(&rpc_data->sync);
+ 
+ 	/* Create a endpoint to handle rpc response from master */
+ 	rpc_data->rpmsg_chnl = rp_chnl;
+diff -uparN open-amp-2016.10/lib/remoteproc/drivers/zynq_remoteproc_a9.c openamp/lib/remoteproc/drivers/zynq_remoteproc_a9.c
+--- open-amp-2016.10/lib/remoteproc/drivers/zynq_remoteproc_a9.c	2016-11-05 00:18:46.000000000 +0800
++++ openamp/lib/remoteproc/drivers/zynq_remoteproc_a9.c	2019-05-07 18:00:23.821247952 +0800
+@@ -123,7 +123,7 @@ int _ipi_handler(int vect_id, void *data
+ 	struct proc_intr *intr_info;
+ 
+ 	intr_info = &(vring_hw->intr_info);
+-	atomic_flag_clear((atomic_uint *)&(intr_info->data));
++	atomic_flag_clear((atomic_flag *)&(intr_info->data));
+ 
+ 	//ipi_counter++;
+ 	return 0;
+@@ -166,7 +166,7 @@ static int _poll(struct hil_proc *proc,
+ 		intr_info = &(vring->intr_info);
+ 		flags = metal_irq_save_disable();
+ 		if (!(atomic_flag_test_and_set(
+-			(atomic_uint *)&(intr_info->data)))) {
++			(atomic_flag *)&(intr_info->data)))) {
+ 			metal_irq_restore_enable(flags);
+ 			virtqueue_notification(vring->vq);
+ 			kicked = 1;
